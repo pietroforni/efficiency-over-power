@@ -1,0 +1,27 @@
+name: ci
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  portable-c:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [gcc, clang]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build and test
+        run: make CC=${{ matrix.compiler }} test
+      - name: CLI smoke test
+        run: ./build/lbm_bench --kernel all --nx 17 --ny 19 --steps 5 --warmup 1 --repetitions 1
+
+  armv7-cross-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install ARM hard-float compiler
+        run: sudo apt-get update && sudo apt-get install -y gcc-arm-linux-gnueabihf
+      - name: Compile Raspberry Pi 3 target
+        run: make CC=arm-linux-gnueabihf-gcc rpi3

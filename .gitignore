@@ -1,0 +1,10 @@
+build/
+/results/benchmark-*.csv
+/results/metadata-*.txt
+/results/perf-*.csv
+/results/vectorization.txt
+/results/plots/
+/results/incoming/
+*.dSYM/
+__pycache__/
+.DS_Store
