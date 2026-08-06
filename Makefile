@@ -24,7 +24,7 @@ SCALAR_ONLY_FLAGS := -fno-tree-vectorize -fno-tree-slp-vectorize
 VECTOR_REPORT_FLAGS := -fopt-info-vec-optimized -fopt-info-vec-missed
 endif
 
-.PHONY: all test check clean rpi3 unoptimized vector-report help
+.PHONY: all test check clean rpi3 rpi3-vector-report unoptimized vector-report help
 
 all: $(BUILD_DIR)/lbm_bench $(BUILD_DIR)/test_lbm
 
@@ -51,6 +51,9 @@ rpi3:
 	$(MAKE) clean
 	$(MAKE) CC="$(CC)" ARCH_FLAGS="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard" BUILD_PROFILE="rpi3-armv7-neon-O3" all
 
+rpi3-vector-report:
+	$(MAKE) CC="$(CC)" ARCH_FLAGS="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard" BUILD_PROFILE="rpi3-armv7-neon-O3" vector-report
+
 unoptimized:
 	$(MAKE) clean
 	$(MAKE) CC="$(CC)" OPT_FLAGS="-O0" BUILD_PROFILE="portable-O0-appendix" all
@@ -65,6 +68,7 @@ help:
 	@echo "make              Build portable benchmark and tests"
 	@echo "make test         Run correctness tests"
 	@echo "make rpi3         Build for 32-bit Raspberry Pi 3 with NEON"
+	@echo "make rpi3-vector-report  Rebuild the Pi 3 target with vectorization diagnostics"
 	@echo "make unoptimized  Build an O0 compiler-sensitivity appendix"
 	@echo "make vector-report  Rebuild with compiler vectorization diagnostics"
 
