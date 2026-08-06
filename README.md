@@ -45,11 +45,14 @@ make rpi3
 
 `make rpi3` adds `-mcpu=cortex-a53 -mfpu=neon-vfpv4
 -mfloat-abi=hard`. Confirm that the OS, compiler, and installed userland are
-actually 32-bit before using that target. `make vector-report` rebuilds with
-GCC or Clang vectorization diagnostics; the report should identify the
-interior x-loop in `kernel_soa_auto.c` as vectorized. `make unoptimized` exists
-only for a separately labeled compiler-sensitivity appendix; it is not part of
-the layout or SIMD speedup calculation.
+actually 32-bit before using that target. `make rpi3-vector-report` rebuilds
+with target-correct GCC or Clang vectorization diagnostics. GCC 14 on ARMv7
+requires relaxed math semantics to vectorize the auto kernel's floating-point
+interior loop; `make rpi3-relaxed-auto-vector-report` confirms that separately
+labeled variant. `make rpi3-relaxed-auto` builds it with
+`-funsafe-math-optimizations` applied only to the auto kernel. Both relaxed and
+`make unoptimized` builds belong only in a compiler-sensitivity appendix, not
+in the primary layout or SIMD speedup calculation.
 
 Run `./build/lbm_bench --help` for the complete CLI. CSV is written to stdout,
 or written to a result file with `--output FILE`. Allocation,

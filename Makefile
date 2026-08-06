@@ -2,6 +2,7 @@ CC ?= cc
 BUILD_DIR ?= build
 BUILD_PROFILE ?= portable-O3
 OPT_FLAGS ?= -O3
+AUTO_VECTOR_FLAGS ?=
 
 CPPFLAGS := -Iinclude -Isrc -DBUILD_FLAGS=\"$(BUILD_PROFILE)\"
 CFLAGS := -std=c11 $(OPT_FLAGS) -Wall -Wextra -Wpedantic -Wshadow -Wconversion \
@@ -24,7 +25,8 @@ SCALAR_ONLY_FLAGS := -fno-tree-vectorize -fno-tree-slp-vectorize
 VECTOR_REPORT_FLAGS := -fopt-info-vec-optimized -fopt-info-vec-missed
 endif
 
-.PHONY: all test check clean rpi3 rpi3-vector-report unoptimized vector-report help
+.PHONY: all test check clean rpi3 rpi3-vector-report rpi3-relaxed-auto \
+        rpi3-relaxed-auto-vector-report unoptimized vector-report help
 
 all: $(BUILD_DIR)/lbm_bench $(BUILD_DIR)/test_lbm
 
@@ -43,6 +45,7 @@ $(BUILD_DIR)/test_lbm.o: tests/test_lbm.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -c $< -o $@
 
 $(BUILD_DIR)/kernel_aos.o $(BUILD_DIR)/kernel_soa_scalar.o: CFLAGS += $(SCALAR_ONLY_FLAGS)
+$(BUILD_DIR)/kernel_soa_auto.o: CFLAGS += $(AUTO_VECTOR_FLAGS)
 
 test check: $(BUILD_DIR)/test_lbm
 	./$(BUILD_DIR)/test_lbm
@@ -53,6 +56,13 @@ rpi3:
 
 rpi3-vector-report:
 	$(MAKE) CC="$(CC)" ARCH_FLAGS="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard" BUILD_PROFILE="rpi3-armv7-neon-O3" vector-report
+
+rpi3-relaxed-auto:
+	$(MAKE) clean
+	$(MAKE) CC="$(CC)" ARCH_FLAGS="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard" AUTO_VECTOR_FLAGS="-funsafe-math-optimizations" BUILD_PROFILE="rpi3-armv7-neon-O3-auto-relaxed" all
+
+rpi3-relaxed-auto-vector-report:
+	$(MAKE) CC="$(CC)" ARCH_FLAGS="-mcpu=cortex-a53 -mfpu=neon-vfpv4 -mfloat-abi=hard" AUTO_VECTOR_FLAGS="-funsafe-math-optimizations" BUILD_PROFILE="rpi3-armv7-neon-O3-auto-relaxed" vector-report
 
 unoptimized:
 	$(MAKE) clean
@@ -69,6 +79,8 @@ help:
 	@echo "make test         Run correctness tests"
 	@echo "make rpi3         Build for 32-bit Raspberry Pi 3 with NEON"
 	@echo "make rpi3-vector-report  Rebuild the Pi 3 target with vectorization diagnostics"
+	@echo "make rpi3-relaxed-auto  Build the separately labeled relaxed auto-vectorization variant"
+	@echo "make rpi3-relaxed-auto-vector-report  Diagnose its Pi 3 auto-vectorization"
 	@echo "make unoptimized  Build an O0 compiler-sensitivity appendix"
 	@echo "make vector-report  Rebuild with compiler vectorization diagnostics"
 
