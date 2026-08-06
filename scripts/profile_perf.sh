@@ -48,9 +48,9 @@ wait_for_temperature() {
 
 check_throttling() {
     if command -v vcgencmd >/dev/null 2>&1; then
-        status=$(vcgencmd get_throttled)
-        if [ "$status" != "throttled=0x0" ]; then
-            echo "Firmware throttling detected: $status" >&2
+        throttle_status=$(vcgencmd get_throttled)
+        if [ "$throttle_status" != "throttled=0x0" ]; then
+            echo "Firmware throttling detected: $throttle_status" >&2
             echo "Discard this profile, cool the board, reboot to clear latched flags, then retry." >&2
             exit 1
         fi
