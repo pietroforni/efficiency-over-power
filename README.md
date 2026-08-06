@@ -77,10 +77,11 @@ settings. Reboot the Pi before an accepted run so latched firmware-throttling
 flags start at zero.
 
 The `perf` wrapper probes events by attempting a minimal measurement before
-using them. This matters on ARM, where kernel/PMU combinations do not expose a
-uniform counter set. Generic `cache-misses` is **not** presented as an L1 miss
-counter. If `L1-dcache-load-misses` is unsupported, the result says so instead
-of substituting a differently scoped counter.
+using them. It collects one temperature-guarded sample by default and aborts
+on firmware throttling. This matters on ARM, where kernel/PMU combinations do
+not expose a uniform counter set. Generic `cache-misses` is **not** presented
+as an L1 miss counter. If `L1-dcache-load-misses` is unsupported, the result
+says so instead of substituting a differently scoped counter.
 
 Useful reported quantities are:
 
