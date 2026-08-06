@@ -1,0 +1,8 @@
+# started on Thu Aug  6 13:46:10 2026
+
+45295530555,,cycles:u,32781726457,100.00,,
+13185829759,,instructions:u,32781726457,100.00,0.29,insn per cycle
+4328545960,,cache-references:u,32781726457,100.00,,
+720480445,,cache-misses:u,32781726457,100.00,16.64,of all cache refs
+4328545960,,L1-dcache-loads:u,32781726457,100.00,,
+720480445,,L1-dcache-load-misses:u,32781726457,100.00,16.64,of all L1-dcache accesses

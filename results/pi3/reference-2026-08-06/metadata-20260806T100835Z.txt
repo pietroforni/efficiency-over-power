@@ -1,0 +1,22 @@
+[before]
+captured_utc=2026-08-06T10:08:35Z
+uname=Linux RaspOvens 6.12.75+rpt-rpi-v7 #1 SMP Raspbian 1:6.12.75-1+rpt1 (2026-03-11) armv7l GNU/Linux
+compiler=cc
+compiler_version=cc (Raspbian 14.2.0-19+rpi1) 14.2.0
+cpu_model=Raspberry Pi 3 Model B Plus Rev 1.3
+governor=ondemand
+minimum_frequency_khz=600000
+maximum_frequency_khz=1400000
+temperature_millicelsius=38628
+firmware_throttled=throttled=0x0
+[after]
+captured_utc=2026-08-06T11:03:23Z
+uname=Linux RaspOvens 6.12.75+rpt-rpi-v7 #1 SMP Raspbian 1:6.12.75-1+rpt1 (2026-03-11) armv7l GNU/Linux
+compiler=cc
+compiler_version=cc (Raspbian 14.2.0-19+rpi1) 14.2.0
+cpu_model=Raspberry Pi 3 Model B Plus Rev 1.3
+governor=ondemand
+minimum_frequency_khz=600000
+maximum_frequency_khz=1400000
+temperature_millicelsius=53692
+firmware_throttled=throttled=0x0
