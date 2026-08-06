@@ -35,8 +35,11 @@ static int allocate_aligned(float **ptr, size_t count) {
 int lbm_state_create(lbm_state *state, size_t nx, size_t ny,
                      lbm_layout layout, float viscosity,
                      float initial_velocity) {
-    if (!state || nx < 3 || ny < 3 || viscosity <= 0.0f ||
-        nx > SIZE_MAX / ny || nx * ny > SIZE_MAX / LBM_Q) {
+    if (!state || nx < 3 || ny < 3 || !isfinite(viscosity) ||
+        viscosity <= 0.0f || !isfinite(initial_velocity) ||
+        (layout != LBM_LAYOUT_AOS && layout != LBM_LAYOUT_SOA) ||
+        nx > SIZE_MAX / ny ||
+        nx * ny > SIZE_MAX / LBM_Q / sizeof(float)) {
         return -1;
     }
     memset(state, 0, sizeof(*state));

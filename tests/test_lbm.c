@@ -1,6 +1,7 @@
 #include "lbm.h"
 
 #include <math.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -29,6 +30,21 @@ static void test_uniform_equilibrium(void) {
     CHECK(fabs(lbm_total_mass(&state) - initial_mass) / initial_mass < 2.0e-6,
           "uniform mass conservation");
     lbm_state_destroy(&state);
+}
+
+static void test_invalid_state_parameters(void) {
+    lbm_state state;
+    CHECK(lbm_state_create(&state, 8, 8, (lbm_layout)99,
+                           1.0f / 6.0f, 0.05f) != 0,
+          "reject invalid layout");
+    CHECK(lbm_state_create(&state, 8, 8, LBM_LAYOUT_SOA, NAN, 0.05f) != 0,
+          "reject non-finite viscosity");
+    CHECK(lbm_state_create(&state, 8, 8, LBM_LAYOUT_SOA,
+                           1.0f / 6.0f, INFINITY) != 0,
+          "reject non-finite velocity");
+    CHECK(lbm_state_create(&state, SIZE_MAX, 3, LBM_LAYOUT_SOA,
+                           1.0f / 6.0f, 0.05f) != 0,
+          "reject overflowing allocation size");
 }
 
 static void compare_kernel(lbm_kernel candidate, unsigned threads,
@@ -84,6 +100,7 @@ static void test_taylor_green_validation(void) {
 }
 
 int main(void) {
+    test_invalid_state_parameters();
     test_uniform_equilibrium();
     test_kernel_equivalence();
     test_taylor_green_validation();

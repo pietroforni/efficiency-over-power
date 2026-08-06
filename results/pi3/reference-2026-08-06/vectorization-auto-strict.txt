@@ -1,0 +1,7 @@
+# Focused excerpt from the archived GCC 14 ARMv7 vectorization report.
+# Command: make rpi3-vector-report 2> results/vectorization.txt
+# Only diagnostics for src/kernel_soa_auto.c are retained.
+src/kernel_soa_auto.c:10:32: missed: couldn't vectorize loop
+src/kernel_soa_auto.c:10:32: missed: not vectorized: unsupported control flow in loop.
+src/kernel_soa_auto.c:27:9: missed: couldn't vectorize loop
+src/kernel_soa_auto.c:38:34: missed: not vectorized: relevant stmt not supported: _52 = f0_119 + f1_120;

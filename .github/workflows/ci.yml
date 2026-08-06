@@ -15,7 +15,10 @@ jobs:
       - name: Build and test
         run: make CC=${{ matrix.compiler }} all test
       - name: CLI smoke test
-        run: ./build/lbm_bench --kernel all --nx 17 --ny 19 --steps 5 --warmup 1 --repetitions 1
+        run: |
+          ./build/lbm_bench --kernel all --nx 17 --ny 19 --steps 5 --warmup 1 --repetitions 1
+          ! ./build/lbm_bench --viscosity nan
+          ! ./build/lbm_bench --velocity inf
 
   armv7-cross-build:
     runs-on: ubuntu-latest

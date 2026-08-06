@@ -12,13 +12,8 @@ void lbm_step_soa_auto_range(const lbm_state *state,
         const size_t yp = y + 1 == state->ny ? 0 : y + 1;
         lbm_collide_soa_cell(state, input, output, 0, y);
 
-        /*
-         * The pull scheme reads only from input while each iteration writes
-         * one distinct cell in output.  GCC otherwise emits more runtime
-         * alias checks than it is willing to version on ARMv7, despite the
-         * non-overlap guaranteed by the double buffers and the interior
-         * bounds.  This is therefore a valid loop-independence assertion.
-         */
+        /* Double buffers make these iterations independent; the pragma avoids
+           excessive ARMv7 alias-versioning checks. */
 #if defined(__GNUC__) && !defined(__clang__)
 #pragma GCC ivdep
 #elif defined(__clang__)

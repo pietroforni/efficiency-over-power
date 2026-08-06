@@ -825,7 +825,7 @@ wheels = [
 ]
 
 [[package]]
-name = "rasp1-tools"
+name = "efficiency-over-power-tools"
 version = "0.1.0"
 source = { virtual = "." }
 dependencies = [

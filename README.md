@@ -1,32 +1,93 @@
-# Cortex-A53 Lattice-Boltzmann Optimization Study
+# Efficiency over power
 
-A dependency-free D2Q9 lattice-Boltzmann benchmark that studies data layout,
-compiler vectorization, explicit ARM NEON SIMD, and multicore scaling on a
-32-bit Raspberry Pi 3. The physical case is a periodic Taylor–Green vortex,
-which makes numerical correctness measurable rather than relying on a timing
-kernel with no scientific result.
+A C11 optimization study on a Raspberry Pi 3 Model B+. I built it as a
+hands-on systems project because I wanted to understand how data layout, SIMD,
+and multiple cores behave on real, limited hardware.
 
-This project deliberately does **not** compare unoptimized C with optimized
-intrinsics and call the difference a SIMD speedup. Every rung changes one
-primary variable:
+The workload is a D2Q9 lattice-Boltzmann simulation of a periodic Taylor–Green
+vortex. It is small enough to study closely, but it still produces a numerical
+result that can be checked for mass conservation, velocity error, and finite
+values. The benchmark reports throughput only after the simulation has been
+validated.
 
-| Kernel | Layout | Compiler vectorization | Explicit SIMD |
-|---|---|---:|---:|
-| `aos` | Array of Structures | disabled | no |
-| `soa` | Structure of Arrays | disabled | no |
-| `auto` | Structure of Arrays | enabled | no |
-| `neon` | Structure of Arrays | intrinsic implementation | ARM NEON |
+Here, “efficiency over power” means making effective use of available compute
+resources. The project does not measure electrical power, watts, or joules.
 
-The `--threads` option applies static row decomposition to a kernel without
-including thread creation in every lattice step. The main scaling experiment
-uses `neon` with one through four threads.
+## What is compared
+
+The repository contains four implementations of the same update:
+
+| Kernel | Implementation |
+|---|---|
+| `aos` | Array of Structures, with compiler vectorization disabled |
+| `soa` | Structure of Arrays, with compiler vectorization disabled |
+| `auto` | SoA interior loop prepared for compiler vectorization under strict floating-point rules |
+| `neon` | SoA with explicit 128-bit ARM NEON intrinsics |
+
+These are practical implementation variants, not a perfectly isolated
+one-variable experiment. For example, the `auto` loop is also written more
+explicitly than the scalar SoA loop so the compiler can analyze it.
+
+SoA suits NEON because four adjacent cells from one distribution can be loaded
+directly into a single 128-bit vector.
+
+The multicore test runs the NEON implementation with one to four worker
+threads using static row decomposition. Allocation, initialization,
+validation, and CSV output are outside the timed simulation.
+
+## Raspberry Pi 3 results
+
+The accepted reference run used a fan-cooled, 32-bit Raspberry Pi 3 Model B+
+with GCC 14.2.0. It recorded 240 finite samples and no firmware throttling.
+The highest temperature recorded by an individual sample was 54.768 C.
+
+| Result | Measurement |
+|---|---:|
+| NEON speedup over AoS at 16x16 | 1.68x |
+| NEON speedup over AoS at 512x512 | 1.05x |
+| One-core NEON at 512x512 | 4.20 MLUPS |
+| Four-core NEON at 512x512 | 13.59 MLUPS |
+| Four-core speedup and efficiency | 3.24x and 81.0% |
+
+MLUPS means millions of lattice updates per second; higher is better. Values
+are medians from repeated measurements, with median absolute deviation (MAD)
+reported in the detailed results.
+
+![Single-core performance across grid sizes](results/pi3/reference-2026-08-06/plots/single-core.png)
+
+![NEON scaling from one to four threads](results/pi3/reference-2026-08-06/plots/multicore.png)
+
+### Interpretation
+
+Explicit NEON was the fastest implementation at every tested grid size. Its
+advantage over AoS decreased as the grid grew: from 1.68x at 16x16 to 1.05x at
+512x512. This pattern is consistent with increasing cache and memory costs,
+but the available counters are not enough to prove that memory bandwidth was
+the only bottleneck.
+
+Changing to SoA did not guarantee a speedup. The scalar SoA implementation was
+faster than AoS at 16x16 and slower at every larger size. This is a useful
+reminder that layout, access pattern, generated instructions, and working-set
+size have to be considered together.
+
+Four NEON threads reached 3.24 times the one-thread throughput. That is strong
+scaling for four cores, although it is below the ideal 4x. Synchronization and
+shared hardware resources are possible contributors; this experiment does not
+separate their individual costs.
+
+Under strict floating-point semantics, GCC 14 did not vectorize the `auto`
+kernel's interior loop on ARMv7. A separate diagnostic build using relaxed
+math did produce 16-byte and 8-byte vector loops. That build is kept outside
+the primary comparison because it changes floating-point semantics.
+
+The complete tables, methodology, compiler evidence, PMU profile, and limits
+are in [docs/RESULTS.md](docs/RESULTS.md). The accepted data are stored under
+[`results/pi3/reference-2026-08-06/`](results/pi3/reference-2026-08-06/).
 
 ## Build and test
 
-The scalar implementation is portable C11. On non-ARM machines the NEON
-kernel is reported as unavailable and skipped. AArch64 hosts with NEON can run
-it as a correctness convenience, but publishable timings for this study must
-come from the physical Raspberry Pi 3.
+The scalar implementations are portable C11. On non-ARM systems the NEON
+kernel is unavailable and is skipped.
 
 ```sh
 make
@@ -35,127 +96,46 @@ make test
   --steps 500 --warmup 20 --repetitions 10 --threads 1
 ```
 
-For 32-bit Raspberry Pi OS with GCC:
+On a Raspberry Pi 3 running a 32-bit hard-float system:
 
 ```sh
 make rpi3
+make test
 ./build/lbm_bench --kernel neon --nx 512 --ny 512 \
   --steps 500 --warmup 20 --repetitions 10 --threads 4 --pin
 ```
 
-`make rpi3` adds `-mcpu=cortex-a53 -mfpu=neon-vfpv4
--mfloat-abi=hard`. Confirm that the OS, compiler, and installed userland are
-actually 32-bit before using that target. `make rpi3-vector-report` rebuilds
-with target-correct GCC or Clang vectorization diagnostics. GCC 14 on ARMv7
-requires relaxed math semantics to vectorize the auto kernel's floating-point
-interior loop; `make rpi3-relaxed-auto-vector-report` confirms that separately
-labeled variant. `make rpi3-relaxed-auto` builds it with
-`-funsafe-math-optimizations` applied only to the auto kernel. Both relaxed and
-`make unoptimized` builds belong only in a compiler-sensitivity appendix, not
-in the primary layout or SIMD speedup calculation.
+Run `./build/lbm_bench --help` for all options. `--pin` requests Linux CPU
+affinity; it does not change privileged system settings.
 
-Run `./build/lbm_bench --help` for the complete CLI. CSV is written to stdout,
-or written to a result file with `--output FILE`. Allocation,
-initialization, validation, and CSV output are outside the timed region.
+## Reproduce the experiment
 
-## Reproduce the study
-
-The core measurement commands are:
+After building and testing on the Pi:
 
 ```sh
 sh scripts/run_tests.sh
 sh scripts/profile_perf.sh
+```
+
+The sweep waits for the processor to cool below 55 C before each sample and
+rejects the run if Raspberry Pi firmware reports throttling. Reboot before an
+accepted run so any latched throttle flags begin at zero.
+
+Generate the plots with the optional Python tooling:
+
+```sh
 uv sync
-uv run python scripts/plot_results.py results/benchmark-*.csv
+uv run python scripts/plot_results.py \
+  results/pi3/reference-2026-08-06/benchmark-20260806T100835Z.csv \
+  --output-dir results/pi3/reference-2026-08-06/plots
 ```
 
-Run these only after the Raspberry Pi build, tests, and NEON smoke check pass.
-`run_tests.sh` records timing CSV and a before/after metadata sidecar, rotates
-kernel order, waits above a 55 C thermal threshold between individual samples,
-and aborts if firmware reports throttling. It never changes privileged system
-settings. Reboot the Pi before an accepted run so latched firmware-throttling
-flags start at zero.
+## Limits
 
-The `perf` wrapper probes events by attempting a minimal measurement before
-using them. It collects one temperature-guarded sample by default and aborts
-on firmware throttling. This matters on ARM, where kernel/PMU combinations do
-not expose a uniform counter set. Generic `cache-misses` is **not** presented
-as an L1 miss counter. If `L1-dcache-load-misses` is unsupported, the result
-says so instead of substituting a differently scoped counter.
-
-Useful reported quantities are:
-
-- MLUPS (millions of lattice updates per second) and ns/update;
-- estimated traffic of 72 bytes/update (nine float loads and stores), clearly
-  labeled as an algorithmic estimate rather than measured DRAM traffic;
-- cycles, retired instructions, IPC, and supported cache events from `perf`;
-- mass-conservation error, Taylor–Green velocity error, and a checksum that
-  keeps the numerical result observable.
-
-Preserve every raw sample. Store accepted Raspberry Pi data under a stable
-`results/pi3/reference-YYYY-MM-DD/` directory alongside its derived plots.
-
-## Numerical model
-
-The code uses a single-relaxation-time D2Q9 BGK operator in lattice units:
-
-```text
-f_q(x + c_q, t + 1) = f_q(x, t) + omega (f_q^eq - f_q)
-omega = 1 / (3 nu + 1/2)
-```
-
-Streaming and collision are fused using a pull scheme and two 64-byte-aligned
-distribution buffers. Periodic boundaries avoid branch-heavy wall rules in
-the timed kernel. The initial divergence-free Taylor–Green velocity decays as
-`exp(-nu (kx^2 + ky^2) t)`. The benchmark reports its relative L2 velocity
-error, but this analytical comparison is a validation diagnostic—not a claim
-that the discrete weakly-compressible LBM is the exact continuum solution.
-
-Default velocity is 0.05 lattice units to keep the Mach number modest. The
-primary study does not use `-ffast-math`; relaxed floating-point semantics can
-be investigated only as a separately labeled experiment.
-
-## Interpreting results
-
-Two complete distribution grids require approximately `72 * nx * ny` bytes.
-The default sweep therefore includes working sets that fit roughly within L1,
-within the shared L2, and well beyond L2. Exact effective capacities and cache
-competition depend on the kernel and all concurrently resident data.
-
-LBM has low arithmetic intensity and can become bandwidth-bound. Consequently,
-manual NEON need not beat compiler vectorization substantially, and four cores
-need not achieve fourfold speedup. A plateau accompanied by improved IPC but
-unchanged MLUPS is useful evidence of a memory bottleneck, not a failed result.
-
-See [docs/RESULTS.md](docs/RESULTS.md) for the report checklist and tables to
-fill using physical-device measurements.
-
-## Repository map
-
-```text
-include/             Public solver and benchmark interfaces
-src/                 Common model, four kernels, threading, CLI, telemetry
-tests/                Numerical and cross-kernel correctness tests
-scripts/              Reproducible sweeps, system metadata, perf, plotting
-docs/RESULTS.md       Measurement report template
-results/README.md     Raw and derived result storage policy
-.github/workflows/    Portable GCC/Clang correctness CI
-```
-
-Runtime requirements are libc, libm, POSIX threads, and Linux `perf` for PMU
-measurements. Plotting is deliberately an optional development dependency.
-
-## Limitations
-
-- The ARMv7 NEON reciprocal uses two Newton refinements, so its rounding may
-  differ slightly from scalar division. Tests compare macroscopic fields with
-  an explicit tolerance.
-- A `perf` event can be absent or inaccessible because of kernel configuration
-  or `perf_event_paranoid`; the program does not attempt to change permissions.
-- Thermal readings are unavailable on non-Linux development hosts and appear
-  as `-1` in CSV.
-- This first release studies single-precision BGK and periodic Taylor–Green
-  flow. Boundary-heavy geometries, MRT collision, MPI, and GPU backends are out
-  of scope.
+The measurements come from one actively cooled board, one compiler version,
+an `ondemand` frequency governor, and one periodic single-precision model. The
+PMU data contain one profile and cannot identify every cache level reliably.
+The natural follow-up is to repeat the validated experiment with an external
+power meter and report energy per lattice update.
 
 Licensed under the MIT License.

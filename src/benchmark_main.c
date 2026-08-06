@@ -4,6 +4,7 @@
 #include "lbm.h"
 
 #include <errno.h>
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -63,7 +64,7 @@ static int parse_float(const char *text, float *value) {
     char *end = NULL;
     errno = 0;
     float parsed = strtof(text, &end);
-    if (errno || !end || *end) return -1;
+    if (errno || !end || *end || !isfinite(parsed)) return -1;
     *value = parsed;
     return 0;
 }

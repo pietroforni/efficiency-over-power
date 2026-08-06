@@ -1,0 +1,9 @@
+# Focused excerpt from the archived GCC 14 ARMv7 relaxed-math report.
+# Command: make rpi3-vector-report OPT_FLAGS='-O3 -funsafe-math-optimizations'
+# This historical command relaxed the full build. Only auto-kernel diagnostics are retained.
+src/kernel_soa_auto.c:10:32: missed: couldn't vectorize loop
+src/kernel_soa_auto.c:10:32: missed: not vectorized: unsupported control flow in loop.
+src/kernel_soa_auto.c:27:9: optimized: loop vectorized using 16 byte vectors
+src/kernel_soa_auto.c:27:9: optimized: loop vectorized using 8 byte vectors
+src/kernel_soa_auto.c:3:6: missed: not vectorized: vectorization is not profitable.
+src/kernel_soa_auto.c:3:6: missed: not vectorized: vectorization is not profitable.

@@ -18,11 +18,16 @@ def read_rows(paths):
     return rows
 
 
-def median_groups(rows, keys, value):
+def group_statistics(rows, keys, value):
     groups = defaultdict(list)
     for row in rows:
         groups[tuple(row[key] for key in keys)].append(float(row[value]))
-    return {key: statistics.median(values) for key, values in groups.items()}
+    result = {}
+    for key, values in groups.items():
+        median = statistics.median(values)
+        mad = statistics.median(abs(item - median) for item in values)
+        result[key] = (median, mad)
+    return result
 
 
 def write_summary(rows, path):
@@ -69,14 +74,18 @@ def main():
     write_summary(valid, args.output_dir / "summary.csv")
 
     single = [row for row in valid if row["threads"] == "1"]
-    by_size = median_groups(single, ("kernel", "nx"), "mlups")
+    by_size = group_statistics(single, ("kernel", "nx"), "mlups")
     fig, axis = plt.subplots(figsize=(8, 5))
-    kernels = sorted({key[0] for key in by_size})
+    kernels = [name for name in ("aos", "soa", "auto", "neon")
+               if any(key[0] == name for key in by_size)]
     for kernel in kernels:
-        points = sorted((int(size), rate) for (name, size), rate in by_size.items()
+        points = sorted((int(size), median, mad)
+                        for (name, size), (median, mad) in by_size.items()
                         if name == kernel)
-        axis.plot([point[0] for point in points], [point[1] for point in points],
-                  marker="o", label=kernel)
+        axis.errorbar([point[0] for point in points],
+                      [point[1] for point in points],
+                      yerr=[point[2] for point in points],
+                      marker="o", capsize=3, label=kernel)
     axis.set(xlabel="Square lattice width", ylabel="Median MLUPS",
              title="Single-core D2Q9 performance")
     axis.set_xscale("log", base=2)
@@ -87,15 +96,17 @@ def main():
     plt.close(fig)
 
     multicore = [row for row in valid if row["kernel"] == "neon"]
-    by_threads = median_groups(multicore, ("nx", "threads"), "mlups")
+    by_threads = group_statistics(multicore, ("nx", "threads"), "mlups")
     fig, axis = plt.subplots(figsize=(8, 5))
     for size in sorted({key[0] for key in by_threads}, key=int):
-        points = sorted((int(threads), rate)
-                        for (width, threads), rate in by_threads.items()
+        points = sorted((int(threads), median, mad)
+                        for (width, threads), (median, mad) in by_threads.items()
                         if width == size)
         if len(points) > 1:
-            axis.plot([point[0] for point in points], [point[1] for point in points],
-                      marker="o", label=f"{size}x{size}")
+            axis.errorbar([point[0] for point in points],
+                          [point[1] for point in points],
+                          yerr=[point[2] for point in points],
+                          marker="o", capsize=3, label=f"{size}x{size}")
     axis.set(xlabel="Threads", ylabel="Median MLUPS",
              title="NEON multicore scaling", xticks=[1, 2, 3, 4])
     axis.grid(True, alpha=0.3)
