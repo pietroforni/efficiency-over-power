@@ -7,7 +7,9 @@ SIZES=${SIZES:-"16 64 128 256 512"}
 STEPS=${STEPS:-500}
 REPETITIONS=${REPETITIONS:-10}
 WARMUP=${WARMUP:-20}
-MAX_TEMP_C=${MAX_TEMP_C:-75}
+# The Pi 3 B+ may begin soft-throttling around 60 C.  Leave headroom for a
+# single timed sample, and cool between samples rather than between batches.
+MAX_TEMP_C=${MAX_TEMP_C:-55}
 
 mkdir -p "$RESULT_DIR"
 STAMP=$(date -u +%Y%m%dT%H%M%SZ)
@@ -43,13 +45,34 @@ wait_for_temperature() {
     done
 }
 
-append_run() {
+check_throttling() {
+    if command -v vcgencmd >/dev/null 2>&1; then
+        status=$(vcgencmd get_throttled)
+        if [ "$status" != "throttled=0x0" ]; then
+            echo "Firmware throttling detected: $status" >&2
+            echo "Discard this run, cool the board, reboot to clear latched flags, then retry." >&2
+            exit 1
+        fi
+    fi
+}
+
+append_sample() {
     wait_for_temperature
-    "$BENCHMARK" "$@" --warmup "$WARMUP" --repetitions "$REPETITIONS" --output "$TEMP_FILE"
+    check_throttling
+    "$BENCHMARK" "$@" --warmup "$WARMUP" --repetitions 1 --output "$TEMP_FILE"
+    check_throttling
     if [ ! -s "$OUTPUT" ]; then
         sed -n '1p' "$TEMP_FILE" > "$OUTPUT"
     fi
     sed -n '2,$p' "$TEMP_FILE" >> "$OUTPUT"
+}
+
+append_run() {
+    completed=0
+    while [ "$completed" -lt "$REPETITIONS" ]; do
+        append_sample "$@"
+        completed=$((completed + 1))
+    done
 }
 
 order_index=0

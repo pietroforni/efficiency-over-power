@@ -71,8 +71,10 @@ uv run python scripts/plot_results.py results/benchmark-*.csv
 
 Run these only after the Raspberry Pi build, tests, and NEON smoke check pass.
 `run_tests.sh` records timing CSV and a before/after metadata sidecar, rotates
-kernel order, and waits above the configured thermal threshold. It never
-changes privileged system settings.
+kernel order, waits above a 55 C thermal threshold between individual samples,
+and aborts if firmware reports throttling. It never changes privileged system
+settings. Reboot the Pi before an accepted run so latched firmware-throttling
+flags start at zero.
 
 The `perf` wrapper probes events by attempting a minimal measurement before
 using them. This matters on ARM, where kernel/PMU combinations do not expose a
